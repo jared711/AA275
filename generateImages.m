@@ -1,0 +1,93 @@
+clc
+clear all
+close all
+
+setenceladusglobal
+load('/media/jared711/SeagatePortableDrive/UBUNTU/StanfordMATLAB/AA275_Navigation/project/data/NRHO200_eig_idx6_alpha1e-03_QPO.mat')
+
+% Simulating the camera moving through space
+tf = 5*T;
+[tt,xx] = ode78e(@(t,x) CR3BP(t,x), 0, tf, u(:,1) ,eps);
+dt = 600/TUNIT; %[NON] 10 minutes between pictures
+times = 0:dt:tf; % times for pictures to be taken
+N_t = length(times);
+x_interp = interp1(tt, xx(:,1), times);
+y_interp = interp1(tt, xx(:,2), times);
+z_interp = interp1(tt, xx(:,3), times);
+xdot_interp = interp1(tt, xx(:,4), times);
+ydot_interp = interp1(tt, xx(:,5), times);
+zdot_interp = interp1(tt, xx(:,6), times);
+r_interp = [x_interp;
+            y_interp;
+            z_interp];
+v_interp = [xdot_interp;
+            ydot_interp;
+            zdot_interp];
+state_interp = [r_interp;
+                v_interp];
+
+figure("Visible","off")
+enceladus = pltplanet(SEC.radius/RUNIT, [1-mu,0,0], 'enceladus_16k.jpg',1,100);
+% enceladus = plot_sec();
+grid off
+% axis([-10,10,-10,10,-10,10])
+axis equal
+set(gcf,'InvertHardcopy','off')
+set(gcf,'Color','k')
+set(gca,"Color",'k','XColor', 'none','YColor','none','ZColor','none')
+sun = light("Position",[0,-1*cosd(26.73),-1*sind(26.73)]);
+lighting gouraud
+set(enceladus,"AmbientStrength",0.05,"DiffuseStrength",0.9,"SpecularStrength",0.05)
+% set(gca,"CameraTarget", [1-mu,0,0])
+set(gca,"CameraTargetMode","manual")
+% set(gca,'CameraUpVectorMode','manual')
+set(gca,"CameraViewAngle",40, "Projection","perspective")
+
+az = zeros(1,N_t);    
+el = zeros(1,N_t);
+q = zeros(9,N_t);
+view_mat = zeros(4,4,N_t);
+for i = 1:N_t
+    fprintf("i = %i/%i\n",i,N_t)
+    upvec = rotx(2*pi*(i-1)*dt/T)*[0;0;1];
+    set(gca,"CameraPosition",r_interp(:,i),...
+        "CameraTarget",[1-mu,0,0])
+%     set(gca,"CameraTarget",r_interp(:,i+1))
+%     camup(rotx(2*pi*(i-1)*dt/T)*[0;0;1])
+%     view(90,-90+2*pi*(i-1)*dt/T)
+    drawnow
+    view_mat(:,:,i) = view;
+    [az(i),el(i)] = view;
+    A = rotyd(-el(i))*rotzd(az(i));
+    q(:,i) = reshape(A,9,1);
+    saveas(gcf, sprintf("fig/trial5/img_%0.4i.jpg",i))
+    
+%     exportgraphics(gcf, sprintf("fig/img_%0.4i.jpg",i),"Resolution",1024,'BackgroundColor', [0 0 0])
+
+end
+x = [state_interp; q];
+save("states_trial5",'az','el','q','times','state_interp','x','tt','xx','dt','N_t','tf', "view_mat")
+% newcp = 1
+% set(gca, 'CameraPosition', newcp)
+
+
+%%
+
+
+% % % % [Rjet,Ujet] = convertjetframe;
+% % % % Rz = rotz(pi); % need to rotate by 180 deg because convert jet frame assumes prime meridian points in positive x direction while true
+% % % % Rjet_rot = Rz*Rjet;
+% % % % Rjet_rot = Rjet_rot./vecnorm(Rjet_rot)*SEC.radius/RUNIT;
+% % % % Rjet_rot = Rjet_rot + [1-mu;0;0];
+% % % % 
+% % % % pltplanet(SEC.radius/RUNIT, [1-mu;0;0],"enceladus_16k.jpg",1,100)
+% % % % hold on
+% % % % plot_rv(orbit.xx)
+% % % % [tt,xx] = ode78e(@(t,x) CR3BP(t,x), 0, 100*orbit.T, orbit.xx(1,:) ,1e-16);
+% % % % plot_rv(xx,'b')
+% % % % 
+% % % % plot3(Rjet_rot(1,:),Rjet_rot(2,:),Rjet_rot(3,:),'rx')
+% % % % ax = gca;               % get the current axis
+% % % % ax.Clipping = 'off';    % turn clipping off
+% % % % view([0,0,-1])
+

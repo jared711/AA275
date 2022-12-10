@@ -1,0 +1,3 @@
+ffmpeg -r 20 -i trial3/img_%4d.jpg -vf "crop=trunc(iw/2)*2:trunc(ih/2)*2" trial3
+.mp4
+
